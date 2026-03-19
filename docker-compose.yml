@@ -28,7 +28,7 @@ services:
   # Traefik Reverse Proxy
   # ------------------------------------------
   traefik:
-    image: traefik:v2.10
+    image: traefik:latest
     container_name: ${PROJECT_NAME}_traefik
     restart: unless-stopped
     security_opt:
