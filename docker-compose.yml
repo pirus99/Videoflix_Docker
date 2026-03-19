@@ -50,6 +50,7 @@ services:
       - "--providers.docker=true"
       - "--providers.docker.exposedbydefault=false"
       - "--providers.docker.network=traefik-public"
+      - "--providers.docker.constraints=Label(`traefik.constraint-label`,`${PROJECT_NAME}`)"
       
       # Entrypoints
       - "--entrypoints.web.address=:80"
@@ -73,6 +74,7 @@ services:
       - traefik_certs:/letsencrypt
     labels:
       - "traefik.enable=true"
+      - "traefik.constraint-label=${PROJECT_NAME}"
       
       # Dashboard (if enabled)
       - "traefik.http.routers.${PROJECT_NAME}-traefik-dashboard.rule=Host(`traefik.${DOMAIN}`)"
@@ -172,6 +174,7 @@ services:
       - backend_static:/app/staticfiles
     labels:
       - "traefik.enable=true"
+      - "traefik.constraint-label=${PROJECT_NAME}"
       
       # API Router
       - "traefik.http.routers.${PROJECT_NAME}-backend-api.rule=Host(`${DOMAIN}`) && PathPrefix(`/api`)"
@@ -214,6 +217,7 @@ services:
       - API_BASE_URL=${API_BASE_URL}
     labels:
       - "traefik.enable=true"
+      - "traefik.constraint-label=${PROJECT_NAME}"
       
       # Frontend Router (catch-all for remaining paths)
       - "traefik.http.routers.${PROJECT_NAME}-frontend.rule=Host(`${DOMAIN}`)"
