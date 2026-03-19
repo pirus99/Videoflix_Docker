@@ -5,7 +5,8 @@ This is a generic production deployment setup for Django + JavaScript + PostgreS
 ## Features
 
 - 🚀 **Production-ready** Docker setup
-- 🔒 **Automatic SSL** certificates with Let's Encrypt
+- 🔒 **Automatic SSL** certificates with Let's Encrypt (configurable)
+- 🔧 **Flexible SSL configuration** - enable/disable ACME certificate requests for different environments
 - 🔄 **Reverse proxy** with Traefik
 - 🐘 **PostgreSQL** database
 - 🎬 **FFMPEG** support for media processing
@@ -49,6 +50,9 @@ nano .env  # or use your preferred editor
 - `SECRET_KEY` - Django secret key
 - `DB_PASSWORD` - Secure database password
 - `LETSENCRYPT_EMAIL` - Your email for SSL certificates
+- `LETSENCRYPT_CERTRESOLVER` - Set to `letsencrypt` to enable SSL, or leave empty to disable
+
+> **Note**: For local development with localhost, set `LETSENCRYPT_CERTRESOLVER=` (empty) to disable automatic SSL certificate requests.
 
 **Generate Django secret key:**
 
@@ -147,11 +151,40 @@ EMAIL_HOST_PASSWORD=your-app-password
 DEFAULT_FROM_EMAIL=noreply@example.com
 ```
 
-#### SSL/TLS
+#### SSL/TLS and Let's Encrypt
 
-| Variable | Description |
-|----------|-------------|
-| `LETSENCRYPT_EMAIL` | Email for Let's Encrypt notifications |
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `ENABLE_LETSENCRYPT` | Enable/disable automatic SSL certificates | `true` |
+| `LETSENCRYPT_CERTRESOLVER` | Certificate resolver name (use `letsencrypt` to enable, empty to disable) | `letsencrypt` |
+| `LETSENCRYPT_EMAIL` | Email for Let's Encrypt notifications | **REQUIRED** when enabled |
+| `LETSENCRYPT_CA_SERVER` | CA server URL (use staging for testing, empty for production) | Empty (production) |
+
+**Production setup** (automatic SSL certificates):
+```env
+ENABLE_LETSENCRYPT=true
+LETSENCRYPT_CERTRESOLVER=letsencrypt
+LETSENCRYPT_EMAIL=admin@example.com
+LETSENCRYPT_CA_SERVER=
+```
+
+**Local development** (no SSL certificate requests):
+```env
+ENABLE_LETSENCRYPT=false
+LETSENCRYPT_CERTRESOLVER=
+LETSENCRYPT_EMAIL=admin@example.com
+LETSENCRYPT_CA_SERVER=
+```
+
+**Testing with Let's Encrypt staging** (avoid rate limits):
+```env
+ENABLE_LETSENCRYPT=true
+LETSENCRYPT_CERTRESOLVER=letsencrypt
+LETSENCRYPT_EMAIL=admin@example.com
+LETSENCRYPT_CA_SERVER=https://acme-staging-v02.api.letsencrypt.org/directory
+```
+
+> **Note**: When `LETSENCRYPT_CERTRESOLVER` is empty, Traefik will not request SSL certificates from Let's Encrypt. This is useful for local development or when using custom certificates.
 
 ## Managing the Application
 
@@ -319,9 +352,30 @@ docker-compose logs traefik | grep -i acme
 ```
 
 Ensure:
+- `ENABLE_LETSENCRYPT=true` in your `.env` file
+- `LETSENCRYPT_CERTRESOLVER=letsencrypt` is set (not empty)
 - Domain DNS is pointing to your server
-- Ports 80 and 443 are accessible
+- Ports 80 and 443 are accessible from the internet
 - Email in `LETSENCRYPT_EMAIL` is valid
+- Not hitting Let's Encrypt rate limits (use staging server for testing)
+
+**For local development**, disable ACME certificate requests:
+```env
+ENABLE_LETSENCRYPT=false
+LETSENCRYPT_CERTRESOLVER=
+```
+
+**To test certificate requests without rate limits**, use Let's Encrypt staging:
+```env
+LETSENCRYPT_CA_SERVER=https://acme-staging-v02.api.letsencrypt.org/directory
+```
+
+**Clear certificate cache** if you need to force new certificate requests:
+```bash
+docker-compose down
+docker volume rm ${PROJECT_NAME}_traefik_certs
+docker-compose up -d
+```
 
 ### Database Connection Issues
 

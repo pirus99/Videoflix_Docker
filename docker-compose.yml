@@ -60,11 +60,12 @@ services:
       - "--entrypoints.web.http.redirections.entrypoint.to=websecure"
       - "--entrypoints.web.http.redirections.entrypoint.scheme=https"
       
-      # SSL/TLS with Let's Encrypt
+      # SSL/TLS with Let's Encrypt (controlled by LETSENCRYPT_CERTRESOLVER in .env)
       - "--certificatesresolvers.letsencrypt.acme.httpchallenge=true"
       - "--certificatesresolvers.letsencrypt.acme.httpchallenge.entrypoint=web"
       - "--certificatesresolvers.letsencrypt.acme.email=${LETSENCRYPT_EMAIL}"
       - "--certificatesresolvers.letsencrypt.acme.storage=/letsencrypt/acme.json"
+      - "--certificatesresolvers.letsencrypt.acme.caserver=${LETSENCRYPT_CA_SERVER:-}"
       
       # Logs
       - "--log.level=INFO"
@@ -80,7 +81,7 @@ services:
       - "traefik.http.routers.${PROJECT_NAME}-traefik-dashboard.rule=Host(`traefik.${DOMAIN}`)"
       - "traefik.http.routers.${PROJECT_NAME}-traefik-dashboard.service=api@internal"
       - "traefik.http.routers.${PROJECT_NAME}-traefik-dashboard.entrypoints=websecure"
-      - "traefik.http.routers.${PROJECT_NAME}-traefik-dashboard.tls.certresolver=letsencrypt"
+      - "traefik.http.routers.${PROJECT_NAME}-traefik-dashboard.tls.certresolver=${LETSENCRYPT_CERTRESOLVER:-}"
       
       # Basic auth for dashboard (optional)
       # Generate with: echo $(htpasswd -nb admin password) | sed -e s/\\$/\\$\\$/g
@@ -179,23 +180,23 @@ services:
       # API Router
       - "traefik.http.routers.${PROJECT_NAME}-backend-api.rule=Host(`${DOMAIN}`) && PathPrefix(`/api`)"
       - "traefik.http.routers.${PROJECT_NAME}-backend-api.entrypoints=websecure"
-      - "traefik.http.routers.${PROJECT_NAME}-backend-api.tls.certresolver=letsencrypt"
+      - "traefik.http.routers.${PROJECT_NAME}-backend-api.tls.certresolver=${LETSENCRYPT_CERTRESOLVER:-}"
       - "traefik.http.services.${PROJECT_NAME}-backend-api.loadbalancer.server.port=8000"
       
       # Admin Router
       - "traefik.http.routers.${PROJECT_NAME}-backend-admin.rule=Host(`${DOMAIN}`) && PathPrefix(`/admin`)"
       - "traefik.http.routers.${PROJECT_NAME}-backend-admin.entrypoints=websecure"
-      - "traefik.http.routers.${PROJECT_NAME}-backend-admin.tls.certresolver=letsencrypt"
+      - "traefik.http.routers.${PROJECT_NAME}-backend-admin.tls.certresolver=${LETSENCRYPT_CERTRESOLVER:-}"
       
       # Media Router
       - "traefik.http.routers.${PROJECT_NAME}-backend-media.rule=Host(`${DOMAIN}`) && PathPrefix(`/media`)"
       - "traefik.http.routers.${PROJECT_NAME}-backend-media.entrypoints=websecure"
-      - "traefik.http.routers.${PROJECT_NAME}-backend-media.tls.certresolver=letsencrypt"
+      - "traefik.http.routers.${PROJECT_NAME}-backend-media.tls.certresolver=${LETSENCRYPT_CERTRESOLVER:-}"
       
       # Static Router
       - "traefik.http.routers.${PROJECT_NAME}-backend-static.rule=Host(`${DOMAIN}`) && PathPrefix(`/static`)"
       - "traefik.http.routers.${PROJECT_NAME}-backend-static.entrypoints=websecure"
-      - "traefik.http.routers.${PROJECT_NAME}-backend-static.tls.certresolver=letsencrypt"
+      - "traefik.http.routers.${PROJECT_NAME}-backend-static.tls.certresolver=${LETSENCRYPT_CERTRESOLVER:-}"
 
   # ------------------------------------------
   # Frontend (Nginx)
@@ -222,7 +223,7 @@ services:
       # Frontend Router (catch-all for remaining paths)
       - "traefik.http.routers.${PROJECT_NAME}-frontend.rule=Host(`${DOMAIN}`)"
       - "traefik.http.routers.${PROJECT_NAME}-frontend.entrypoints=websecure"
-      - "traefik.http.routers.${PROJECT_NAME}-frontend.tls.certresolver=letsencrypt"
+      - "traefik.http.routers.${PROJECT_NAME}-frontend.tls.certresolver=${LETSENCRYPT_CERTRESOLVER:-}"
       - "traefik.http.services.${PROJECT_NAME}-frontend.loadbalancer.server.port=80"
       
       # Priority (lower than backend routes)
