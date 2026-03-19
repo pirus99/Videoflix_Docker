@@ -59,6 +59,12 @@ echo "=========================================="
 echo "Starting Gunicorn Server"
 echo "=========================================="
 
+python manage.py rqworker high default low &
+python manage.py rqworker high default low &
+python manage.py rqworker high default low &
+python manage.py rqworker high default low &
+python manage.py rqworker high default low &
+
 # Start Gunicorn
 exec gunicorn \
     --bind 0.0.0.0:8000 \
