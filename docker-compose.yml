@@ -208,6 +208,7 @@ services:
       args:
         REPO_URL: ${FRONTEND_REPO_URL}
         BRANCH: ${FRONTEND_BRANCH:-main}
+        API_BASE_URL: https://${DOMAIN}/api/
     container_name: ${PROJECT_NAME}_frontend
     restart: unless-stopped
     networks:

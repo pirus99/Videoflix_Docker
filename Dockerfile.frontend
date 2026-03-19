@@ -32,6 +32,9 @@ RUN if [ -f "package.json" ] && grep -q '"build"' package.json; then \
 # ============================================
 FROM nginx:alpine as production
 
+# Accept API_BASE_URL as build argument (defaults to /api/)
+ARG API_BASE_URL=/api/
+
 # Remove default nginx config
 RUN rm /etc/nginx/conf.d/default.conf
 
@@ -91,6 +94,11 @@ RUN if [ -d "/tmp/app/dist" ]; then \
         cp -r /tmp/app/* /usr/share/nginx/html/; \
     fi && \
     rm -rf /tmp/app
+
+# Configure API_BASE_URL in config.js
+RUN if [ -f "/usr/share/nginx/html/shared/js/config.js" ]; then \
+        sed -i "s|const API_BASE_URL = .*|const API_BASE_URL = '${API_BASE_URL}';|" /usr/share/nginx/html/shared/js/config.js; \
+    fi
 
 # Create nginx user and set permissions
 RUN chown -R nginx:nginx /usr/share/nginx/html && \
