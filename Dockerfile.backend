@@ -1,0 +1,80 @@
+# ============================================
+# Production Backend Dockerfile
+# Generic Django + FFMPEG + PostgreSQL
+# ============================================
+
+FROM python:3.12-slim as base
+
+# Set environment variables
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PIP_NO_CACHE_DIR=1 \
+    PIP_DISABLE_PIP_VERSION_CHECK=1
+
+# Install system dependencies including FFMPEG
+RUN apt-get update && apt-get install -y \
+    git \
+    ffmpeg \
+    libpq-dev \
+    postgresql-client \
+    gcc \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+# Create app directory
+WORKDIR /app
+
+# Build stage - clone repository and install dependencies
+FROM base as builder
+
+# Accept build arguments
+ARG REPO_URL
+ARG BRANCH=main
+
+# Clone the repository
+RUN git clone --depth 1 --branch ${BRANCH} ${REPO_URL} /app/backend
+
+WORKDIR /app/backend
+
+# Install Python dependencies
+RUN pip install --upgrade pip && \
+    pip install -r requirements.txt && \
+    pip install gunicorn psycopg2-binary
+
+# ============================================
+# Final production stage
+# ============================================
+FROM base as production
+
+# Copy installed packages from builder
+COPY --from=builder /usr/local/lib/python3.12/site-packages /usr/local/lib/python3.12/site-packages
+COPY --from=builder /usr/local/bin /usr/local/bin
+
+# Copy application code
+COPY --from=builder /app/backend /app
+
+WORKDIR /app
+
+# Copy entrypoint script
+COPY entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
+
+# Create necessary directories
+RUN mkdir -p /app/staticfiles /app/media /app/logs
+
+# Create non-root user for security
+RUN useradd -m -u 1000 appuser && \
+    chown -R appuser:appuser /app
+
+# Switch to non-root user
+USER appuser
+
+# Expose port
+EXPOSE 8000
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
+    CMD curl -f http://localhost:8000/api/health/ || exit 1
+
+# Set entrypoint
+ENTRYPOINT ["/entrypoint.sh"]

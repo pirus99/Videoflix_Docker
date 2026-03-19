@@ -1,0 +1,107 @@
+# ============================================
+# Production Frontend Dockerfile
+# Generic JavaScript/HTML + Nginx
+# ============================================
+
+FROM node:18-alpine as builder
+
+# Install git
+RUN apk add --no-cache git
+
+# Accept build arguments
+ARG REPO_URL
+ARG BRANCH=main
+
+# Clone the repository
+RUN git clone --depth 1 --branch ${BRANCH} ${REPO_URL} /app
+
+WORKDIR /app
+
+# Install dependencies if package.json exists
+RUN if [ -f "package.json" ]; then \
+        npm ci --production; \
+    fi
+
+# Build if build script exists (for Vite, React, etc.)
+RUN if [ -f "package.json" ] && grep -q '"build"' package.json; then \
+        npm run build; \
+    fi
+
+# ============================================
+# Production stage with Nginx
+# ============================================
+FROM nginx:alpine as production
+
+# Remove default nginx config
+RUN rm /etc/nginx/conf.d/default.conf
+
+# Copy custom nginx configuration
+COPY <<EOF /etc/nginx/conf.d/default.conf
+server {
+    listen 80;
+    server_name localhost;
+    root /usr/share/nginx/html;
+    index index.html;
+
+    # Gzip compression
+    gzip on;
+    gzip_vary on;
+    gzip_min_length 1024;
+    gzip_types text/plain text/css text/xml text/javascript application/x-javascript application/xml+rss application/json application/javascript;
+
+    # Security headers
+    add_header X-Frame-Options "SAMEORIGIN" always;
+    add_header X-Content-Type-Options "nosniff" always;
+    add_header X-XSS-Protection "1; mode=block" always;
+
+    # Handle client-side routing (SPA)
+    location / {
+        try_files \$uri \$uri/ /index.html;
+    }
+
+    # Cache static assets
+    location ~* \.(jpg|jpeg|png|gif|ico|css|js|svg|woff|woff2|ttf|eot)$ {
+        expires 1y;
+        add_header Cache-Control "public, immutable";
+    }
+
+    # Disable cache for index.html
+    location = /index.html {
+        add_header Cache-Control "no-cache, no-store, must-revalidate";
+        expires 0;
+    }
+
+    # Health check endpoint
+    location /health {
+        access_log off;
+        return 200 "healthy\n";
+        add_header Content-Type text/plain;
+    }
+}
+EOF
+
+# Copy built files from builder
+# If there's a dist/build folder, copy that, otherwise copy everything
+COPY --from=builder /app /tmp/app
+RUN if [ -d "/tmp/app/dist" ]; then \
+        cp -r /tmp/app/dist/* /usr/share/nginx/html/; \
+    elif [ -d "/tmp/app/build" ]; then \
+        cp -r /tmp/app/build/* /usr/share/nginx/html/; \
+    else \
+        cp -r /tmp/app/* /usr/share/nginx/html/; \
+    fi && \
+    rm -rf /tmp/app
+
+# Create nginx user and set permissions
+RUN chown -R nginx:nginx /usr/share/nginx/html && \
+    chmod -R 755 /usr/share/nginx/html
+
+# Expose port
+EXPOSE 80
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+    CMD wget --quiet --tries=1 --spider http://localhost/health || exit 1
+
+# Start nginx
+CMD ["nginx", "-g", "daemon off;"]
