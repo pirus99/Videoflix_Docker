@@ -152,6 +152,7 @@ services:
       redis:
         condition: service_healthy
     environment:
+      - PYTHONUNBUFFERED=1
       # Django settings
       - SECRET_KEY=${SECRET_KEY}
       - DEBUG=${DEBUG:-False}
