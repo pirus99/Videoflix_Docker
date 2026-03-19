@@ -13,6 +13,8 @@ networks:
 volumes:
   postgres_data:
     name: ${PROJECT_NAME}_postgres_data
+  redis_data:
+    name: ${PROJECT_NAME}_redis_data
   backend_media:
     name: ${PROJECT_NAME}_backend_media
   backend_static:
@@ -111,6 +113,26 @@ services:
       retries: 5
 
   # ------------------------------------------
+  # Redis Cache
+  # ------------------------------------------
+  redis:
+    image: redis:latest
+    container_name: ${PROJECT_NAME}_redis
+    restart: unless-stopped
+    networks:
+      - internal
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    environment:
+      - TZ=${TZ:-UTC}
+
+  # ------------------------------------------
   # Django Backend
   # ------------------------------------------
   backend:
@@ -128,6 +150,8 @@ services:
     depends_on:
       db:
         condition: service_healthy
+      redis:
+        condition: service_healthy
     environment:
       # Django settings
       - SECRET_KEY=${SECRET_KEY}
@@ -143,6 +167,10 @@ services:
       - DB_PASSWORD=${POSTGRES_PASSWORD}
       - DB_HOST=${POSTGRES_HOST:-db}
       - DB_PORT=${POSTGRES_PORT:-5432}
+      
+      # Redis
+      - REDIS_HOST=${REDIS_HOST:-redis}
+      - REDIS_PORT=${REDIS_PORT:-6379}
       
       # Email
       - EMAIL_BACKEND=${EMAIL_BACKEND}
