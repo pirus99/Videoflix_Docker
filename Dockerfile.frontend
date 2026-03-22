@@ -15,7 +15,7 @@ ARG BRANCH=main
 # Clone the repository
 RUN git clone --depth 1 --branch ${BRANCH} ${REPO_URL} /app
 
-WORKDIR /app
+WORKDIR /app-v0.1
 
 # Install dependencies if package.json exists
 RUN if [ -f "package.json" ]; then \
